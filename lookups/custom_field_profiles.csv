@@ -1,0 +1,4 @@
+"profile_name","field_list"
+"All Key","*"
+"evtx:security:4624","_time, event.id, user.name, winlog.logon.type, winlog.logon.type_name, source.ip"
+thor,"_time, host, level, file, reason_1, matched_1{}.data"

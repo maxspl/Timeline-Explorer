@@ -1,0 +1,134 @@
+<form version="1.1" script="custom_table.js,DrillToFilter.js">
+  <label>Timeline</label>
+  <description></description>
+  <init>
+    <set token="drillfi_filters_spl"></set>
+  </init>
+  <fieldset submitButton="false">
+    <input type="time" token="field3">
+      <label></label>
+      <default>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+    <input type="dropdown" token="db_index">
+      <label>Index</label>
+      <fieldForLabel>title</fieldForLabel>
+      <fieldForValue>title</fieldForValue>
+      <search>
+        <query>| rest /services/data/indexes | table title</query>
+      </search>
+    </input>
+    <input type="dropdown" token="db_source">
+      <label>Source</label>
+      <fieldForLabel>source</fieldForLabel>
+      <fieldForValue>source</fieldForValue>
+      <search>
+        <query>| tstats count where index=$db_index$ by source
+| table source</query>
+      </search>
+    </input>
+    <input type="multiselect" token="field1">
+      <label>Profile</label>
+      <choice value="source description">generic</choice>
+    </input>
+    <input type="radio" token="flagged">
+      <label>Show Only Flagged Events?</label>
+      <choice value="1">Yes</choice>
+      <choice value="*">No</choice>
+      <default>*</default>
+      <initialValue>*</initialValue>
+      <change>
+        <condition value="1">
+          <set token="show_table_flag">true</set>
+          <unset token="show_table_all"></unset>
+        </condition>
+        <condition value="*">
+          <set token="show_table_all">true</set>
+          <unset token="show_table_flag"></unset>
+        </condition>
+      </change>
+    </input>
+    <input type="text" token="field2">
+      <label>Search</label>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <table id="expand_with_events" depends="$show_table_all$">
+        <search>
+          <query>index=$db_index$ source=$db_source$ $drillfi_filters_spl$ 
+| head 10000
+| eval Flag = _bkt."|"._cd."|".host."|".index."|".source."|"._time
+| lookup apps.csv title AS Flag OUTPUTNEW export AS lookup_match 
+| eval Flag = if(lookup_match="1", Flag."|1", Flag."|0") 
+| where match(Flag, ".*\|"."$flagged$". "$")
+| eval _time = strftime(_time, "%F %T.%3N") 
+| table Flag _time $field1$ 
+| sort _time
+| `remove_fields`</query>
+          <earliest>$field3.earliest$</earliest>
+          <latest>$field3.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <drilldown>
+          <condition field="Flag">
+            <eval token="event_to_add">substr($click.value$, 1, len($click.value$) - 2)</eval>
+          </condition>
+          <condition>
+            <unset token="event_to_add"></unset>
+          </condition>
+        </drilldown>
+      </table>
+    </panel>
+    <panel>
+      <table id="toggle" depends="$foo$">
+        <search>
+          <query>| inputlookup apps.csv
+          | append [stats count | eval title = "$event_to_add$" | eval export = 0 | fields - count]
+          | stats max(export) as export by title
+          | eval export = if(title="$event_to_add$", 1-export, export)
+          | where export=1
+          | outputlookup apps.csv</query>
+        </search>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table id="expand_with_events_flagged" depends="$show_table_flag$">
+        <search>
+          <query>| inputlookup apps.csv 
+| table title
+| eval metadataParts = split(title, "|")
+| eval bkt = mvindex(metadataParts, 0),
+       cd = mvindex(metadataParts, 1),
+       host = mvindex(metadataParts, 2),
+       index = mvindex(metadataParts, 3),
+       source = mvindex(metadataParts, 4),
+       _time = mvindex(metadataParts, 5)
+| eval timeMinusOne = tonumber(_time) - 1,
+       timePlusOne = tonumber(_time) + 1
+| table bkt, cd, host, index, source, timeMinusOne, timePlusOne, title
+| map  search="| search index=\"$$index$$\" source=\"$$source$$\" host=\"$$host$$\" earliest=$$timeMinusOne$$ latest=$$timePlusOne$$ | where _bkt=\"$$bkt$$\" AND _cd=\"$$cd$$\"" maxsearches=200
+| eval Flag = _bkt."|"._cd."|".host."|".index."|".source."|"._time."|1"
+| eval _time = strftime(_time, "%F %T.%3N") 
+| table Flag _time $field1$</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">cell</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+</form>
