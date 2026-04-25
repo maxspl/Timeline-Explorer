@@ -192,7 +192,7 @@ require([
         <div class="pm-overlay" id="pm-overlay">
             <div class="pm-modal">
                 <div class="pm-header">
-                    <h2>📋 Profile Manager</h2>
+                    <h2>📋 Profile Manager 📋</h2>
                     <button class="pm-close" id="pm-close">&times;</button>
                 </div>
                 <div class="pm-tabs">
