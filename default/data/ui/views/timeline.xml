@@ -1,9 +1,10 @@
 <!-- <form version="1.1" script="custom_table.js,DrillToFilter.js"> -->
-<form version="1.1" script="custom_table.js,profile_manager.js">
+<form version="1.1" script="custom_table.js,profile_manager.js" theme="light">
   <label>Timeline</label>
   <description></description>
   <init>
     <set token="drillfi_filters_spl"></set>
+    <set token="dtf_filter_query"></set>
     <unset token="execute_save"></unset>
   </init>
   <!-- Old "Save profile" row removed — profile_manager.js handles create/rename/delete -->
@@ -169,7 +170,7 @@
   <row>
     <panel depends="$show_global_search_all_sources$">
       <title>Global Search - all sources</title>
-      <table>
+      <table id="global_search_sources">
         <search>
           <query>index=$db_index$ host=$host$ earliest="$time_start$" latest="$time_end$" *$search_global$*
 | where $custom_filters$
@@ -211,7 +212,7 @@
     </panel>
     <panel depends="$Source_selected$">
       <title>Global Search - Matches details</title>
-      <table>
+      <table id="global_search_details">
         <search>
           <query>index=$db_index$ host=$Host_selected$ earliest="$time_start$" latest="$time_end$" *$search_global$*
 | where $custom_filters$
@@ -244,7 +245,7 @@
     <panel>
       <title>Events</title>
       <table id="expand_with_events" depends="$show_table_all$">
-        <search>db_source<query>index=$db_index$ source=$db_source$ host=$host$ $drillfi_filters_spl$ earliest="$time_start$" latest="$time_end$" *$search_global$*
+        <search>db_source<query>index=$db_index$ source=$db_source$ host=$host$ earliest="$time_start$" latest="$time_end$" *$search_global$* $dtf_filter_query$
 | where $custom_filters$
 <!-- | eval Flag = _bkt."|"._cd."|".host."|".index."|".source."|"._time -->
 | eval Flag = uid
@@ -334,6 +335,7 @@
           | eval _time = strftime(_time, "%F %T.%3N")
           | table Flag _time $field1$ host source added_by, added_when, mitre_tactic, status, description
           | sort _time
+          | where $dtf_filter_query$
           `remove_null_column`</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
